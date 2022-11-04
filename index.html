@@ -1,0 +1,224 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>Swiftype Faceted Search E-Commerce Store Example</title>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="text/javascript" src="hogan.min.js"></script>
+    <script type="text/javascript" src="jquery.swiftype.autocomplete.js"></script>
+    <script type='text/javascript' src='jquery.ba-hashchange.min.js'></script>
+    <script type="text/javascript" src="jquery.swiftype.search.js"></script>
+    <link type="text/css" rel="stylesheet" href="autocomplete.css" media="all" />
+    <link type="text/css" rel="stylesheet" href="search.css" media="all" />
+    <link type="text/css" rel="stylesheet" href="custom.css" media="all" />
+  </head>
+  <body>
+
+    <div class="container">
+
+    <form style="padding-top: 50px">
+      <label style="display: none;">Search products</label>
+      <input type='text' id='st-search-input' class='st-search-input' placeholder="Search..." aria-label="Search..." />
+    </form>
+    <div id="menu">
+      <h3>Sorted by</h3>
+      <a href="#" class="sort active" ><label>Relevance</label></a>
+      <a href="#" class="sort" data-field="price" data-direction="asc"><label>Price</label></a>
+      <a href="#" class="sort" data-field="published_on" data-direction="desc"><label>Date Added</label></a>
+
+      <div id="facets">
+        <div class="st-custom-facets">
+          <h3>Prices</h3>
+          <input type="checkbox" class="price-filter" name="price" data-type="range" data-from="3" data-to="0" id="under5">
+          <label for="under5">Under $5</label><br />
+          <input type="checkbox" class="price-filter" classname="price" data-type="range" data-from="4" data-to="3" id="under10">
+          <label for="under10">Under $10</label><br />
+          <input type="checkbox" class="price-filter" classname="price" data-type="range" data-from="5" data-to="4" id="under25">
+          <label for="under25">Under $25</label><br />
+          <input type="checkbox" class="price-filter" classname="price" data-type="range" data-from="5" data-to="*" id="over50">
+          <label for="over50">Over $50</label>
+        </div>
+        <div class="st-dynamic-facets">
+        </div>
+      </div>
+    </div>
+
+    <div id="results">
+      <div id="st-results-container">
+        <span id="no-results">No products found</span>
+      </div>
+    </div>
+
+    </div>
+
+    <script type="text/javascript">
+      var searchConfig = {
+        facets: {},
+        sort: {
+          field: undefined,
+          direction: undefined
+        },
+        price: {
+          from: undefined,
+          to: undefined
+        }
+      };
+
+      var resultTemplate = Hogan.compile([
+        "<div class='product'>",
+          "<img src='https:{{image}}' style='width: 150px; height: auto; margin: 0 auto 10px;'>",
+          "<h2>{{title}}</h2>",
+          "<div>Price: ${{price}}</div>",
+        "</div>"
+      ].join('') );
+
+      var customRenderFunction = function(document_type, item) {
+        console.log(item);
+        var
+          date = new Date(item['published_on']),
+          data = {
+            title: item['title'],
+            quantity: item['quantity'],
+            image: item['image'],
+            price: item['price'],
+            category: item['category'],
+            tags: item['tags'],
+            published_on: [date.getMonth(), date.getDate(), date.getFullYear()].join('/')
+          };
+        return resultTemplate.render(data);
+      };
+
+      var $facetContainer = $('.st-dynamic-facets');
+
+      var reloadResults = function() {
+        window.location.hash = window.location.hash.replace(/stp=[^&]*/i, 'stp=1'); // Reset to page 1
+        $(window).hashchange();
+      };
+
+      var bindControls = function(data) {
+        var
+          resultInfo = data['info'],
+          facets = '';
+
+        $.each(resultInfo, function(documentType, typeInfo){
+          $.each(typeInfo.facets, function(field, facetCounts) {
+            facets += ['<div class="facet"><h3>', field, '</h3></div>'].join('')
+            $.each(facetCounts, function(label, count) {
+              var
+                status = "",
+                id = encodeURIComponent(label).toLowerCase();
+              if (window.searchConfig.facets[field] && window.searchConfig.facets[field].indexOf(label) > -1) {
+                status = 'checked="checked"'
+              }
+
+              facets += '<input type="checkbox"' + status + ' name="' + field + '" value="' + label + '" id="' + id + '"> <label for="' + id + '">' + label + ' (' + count + ')</label><br/>';
+            });
+            facets += '<a href="#" class="clear-selection" data-name="' + field + '">Clear all</a>'
+          });
+          $facetContainer.html(facets);
+        });
+      };
+
+      var readSortField = function() {
+        return { products: window.searchConfig.sort.field };
+      };
+
+      var readSortDirection = function() {
+        return { products: window.searchConfig.sort.direction };
+      };
+
+      $('.sort').on('click', function(e){
+        e.preventDefault();
+        // Visually change the selected sorting order
+        $('.sort').removeClass('active');
+        $(this).addClass('active');
+        // Update sorting settings
+        window.searchConfig.sort.field = $(this).data('field');
+        window.searchConfig.sort.direction = $(this).data('direction');
+
+        reloadResults();
+      });
+
+      $facetContainer.on('click', 'input', function(e) {
+        window.searchConfig.facets = {}; // Set the hash to empty
+        $('.st-dynamic-facets input[type="checkbox"]').each(function(idx, obj) {
+          var
+            $checkbox = $(obj),
+            facet = $checkbox.prop('name');
+          if(!window.searchConfig.facets[facet]) {
+            window.searchConfig.facets[facet] = [];
+          }
+          if($checkbox.prop('checked')) {
+            window.searchConfig.facets[facet].push($checkbox.prop('value'));
+          }
+        })
+
+        reloadResults();
+      });
+
+      $facetContainer.on('click', 'a.clear-selection', function(e) {
+        e.preventDefault();
+        var name = $(this).data('name');
+        $('input[name=' + name + ']').prop('checked', false);
+        window.searchConfig.facets[name] = [];
+
+        reloadResults();
+      });
+
+      $('.price-filter').on('click', function(e){
+        if ($(this).prop('checked')) {
+          // Visually update the checkboxes
+          $('.price-filter').prop('checked', false);
+          $(this).prop('checked', true);
+          // Update the search parameters
+          window.searchConfig.price.from = $(this).data('from');
+          window.searchConfig.price.to = $(this).data('to');
+        } else {
+          window.searchConfig.price.from = undefined;
+          window.searchConfig.price.to = undefined;
+        }
+        reloadResults();
+      })
+
+      var readFilters = function() {
+        return {
+          products: {
+            category: window.searchConfig.facets['category'],
+            tags: window.searchConfig.facets['tags'],
+            price: {
+              type: 'range',
+              from: window.searchConfig.price.from,
+              to: window.searchConfig.price.to
+            }
+          }
+        }
+      }
+
+      $('#st-search-input').swiftypeSearch({
+        resultContainingElement: '#st-results-container',
+        engineKey: 'ZxYuqrZiaN79hrY829Mz',
+        renderFunction: customRenderFunction,
+        sortField: readSortField,
+        sortDirection: readSortDirection,
+        facets: { products: ['category', 'tags'] },
+        filters: readFilters,
+        postRenderFunction: bindControls,
+        perPage: 12,
+      });
+
+      $('#st-search-input').swiftype({
+        engineKey: 'ZxYuqrZiaN79hrY829Mz'
+      });
+
+      // Start the demo out with products loaded on the page
+      $(window).on('load', function() {
+        var hasSearchTerm = window.location.hash.indexOf('stq=') >= 0;
+        if (!hasSearchTerm) {
+          window.location.hash = 'stq=product&stp=1';
+          reloadResults();
+        }
+      })
+    </script>
+  </body>
+</html>
