@@ -14,6 +14,9 @@
     <link type="text/css" rel="stylesheet" href="custom.css" media="all" />
   </head>
   <body>
+    <header>
+      <img src="header.png" style="width: 100%" />
+    </header>
 
     <div class="container">
 
@@ -25,7 +28,7 @@
       <h3>Sorted by</h3>
       <a href="#" class="sort active" ><label>Relevance</label></a>
       <a href="#" class="sort" data-field="price" data-direction="asc"><label>Price</label></a>
-      <a href="#" class="sort" data-field="published_on" data-direction="desc"><label>Date Added</label></a>
+      <a href="#" class="sort" data-field="published_on" data-direction="desc"><label>Rating</label></a>
 
       <div id="facets">
         <div class="st-custom-facets">
@@ -204,7 +207,7 @@
         facets: { products: ['category', 'tags'] },
         filters: readFilters,
         postRenderFunction: bindControls,
-        perPage: 12,
+        perPage: 50,
       });
 
       $('#st-search-input').swiftype({
